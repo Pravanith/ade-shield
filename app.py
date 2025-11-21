@@ -145,7 +145,7 @@ if menu == "Live Dashboard":
                     unsafe_allow_html=True)
 
         # 3. Low Risk Patient
-        st.markdown('st.markdown('<div style="background-color:#D0F0C0; padding:10px; border-radius:5px; color:black;">' + '**Patient C** (Room 105)<br>'
+        'st.markdown('<div style="background-color:#D0F0C0; padding:10px; border-radius:5px; color:black;">' + '**Patient C** (Room 105)<br>'
                     '🟢 **Risk: 22% (LOW)**<br>'
                     '*Issue: Stable / Monitoring*',
                     unsafe_allow_html=True)
