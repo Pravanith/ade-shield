@@ -69,15 +69,28 @@ def calculate_aki_risk(age, diuretic_use, acei_arb_use, high_bp, active_chemo, g
 def chatbot_response(text):
     text = text.lower()
     responses = {
+        # --- Core ADE Risks ---
         "warfarin": "Warfarin interacts with several medications and increases bleeding risk.",
         "amiodarone": "Amiodarone can elevate INR when combined with Warfarin.",
-        "inr": "INR indicates clotting time. INR > 3.5 is associated with higher bleeding risk.",
         "aki": "Acute Kidney Injury risk is elevated by certain blood pressure medications (ACEi/ARBs) and diuretics.",
+        
+        # --- New Medication Classes (The Final Layer) ---
+        "metformin": "Metformin is a first-line diabetes drug but is strictly avoided in severe kidney impairment.",
+        "acei": "ACE inhibitors are critical for hypertension but increase the risk of AKI, especially when combined with diuretics.",
+        "doac": "Direct Oral Anticoagulants (like Apixaban) are used for clotting, but their dose must be adjusted for impaired renal function.",
+        "statin": "Statins are used for cardiovascular risk reduction, but monitoring is required for severe muscle pain (myopathy).",
+        "diuretic": "Diuretics are used for fluid retention but increase the risk of dehydration and electrolyte imbalances (like low potassium).",
+        "sulfonylurea": "Sulfonylureas stimulate insulin release and have a high risk of causing severe hypoglycemia.",
+        
+        # --- Chronic Diseases/Conditions ---
+        "diabetes": "Diabetes requires strict blood sugar monitoring; poor control (high HbA1c) increases hypoglycemia risk.",
+        "hypertension": "Uncontrolled hypertension increases cardiovascular risk and stresses kidney function.",
+        "cancer": "Active chemotherapy treatment increases the risk of AKI and immune suppression.",
     }
     for key in responses:
         if key in text:
             return responses[key]
-    return "I'm not sure. Try asking about INR, AKI, or drug interactions."
+    return "I need more specific clinical context. Please refine your query using drug classifications, risk factors, or one of the major ADE categories (Bleeding, Hypoglycemia, AKI)."
 
 # -----------------------------
 # EXPANDED DRUG INTERACTIONS (NEW CONTENT)
