@@ -79,10 +79,35 @@ def chatbot_response(text):
             return responses[key]
     return "I'm not sure. Try asking about INR, AKI, or drug interactions."
 
+# -----------------------------
+# EXPANDED DRUG INTERACTIONS (NEW CONTENT)
+# -----------------------------
 interaction_db = {
-    ("warfarin", "amiodarone"): "Major: Amiodarone significantly increases INR.",
-    ("warfarin", "ibuprofen"): "Moderate: Increased bleeding risk.",
-    ("lisinopril", "spironolactone"): "Moderate: Risk of hyperkalemia.",
+    # --- Existing and Core Bleeding Risks ---
+    ("warfarin", "amiodarone"): "Major: Amiodarone increases INR, high bleeding risk.",
+    ("warfarin", "ibuprofen"): "Major: NSAIDs increase bleeding risk with Warfarin.",
+    ("apixaban", "ibuprofen"): "Moderate: NSAIDs increase bleeding risk with Apixaban.",
+    ("clopidogrel", "aspirin"): "Moderate: Dual antiplatelet therapy, increases bleed risk.",
+    
+    # --- New 5 High-Impact Interactions ---
+    # 1. Cardio/Renal: The "Triple Whammy" AKI risk.
+    ("furosemide", "lisinopril"): "Major: Diuretic + ACEi causes severe hypotension and AKI risk.",
+    # 2. Bleeding/Fungal: Severe DOAC risk.
+    ("rivaroxaban", "fluconazole"): "Major: Fluconazole increases Rivaroxaban levels (CYP3A4 inhibitor); high bleeding risk.",
+    # 3. Diabetes/Cardio: Potentially fatal muscle toxicity.
+    ("amlodipine", "simvastatin"): "Moderate: Amlodipine increases Simvastatin levels; increased risk of rhabdomyolysis (muscle damage).",
+    # 4. Diabetes/Infection: Severe hypoglycemia risk.
+    ("trimethoprim/sulfamethoxazole", "metformin"): "Major: TMP/SMX increases Metformin levels, high hypoglycemia risk.",
+    # 5. HTN/Potassium: Electrolyte imbalance risk.
+    ("losartan", "spironolactone"): "Major: Both conserve potassium (Hyperkalemia risk), especially in renal impairment.",
+    
+    # --- Previous Examples ---
+    ("warfarin", "levofloxacin"): "Major: Fluoroquinolones potentiate Warfarin, extreme bleeding risk.",
+    ("lisinopril", "spironolactone"): "Major: Risk of severe hyperkalemia (high potassium).",
+    ("ibuprofen", "lisinopril"): "Major: Severe AKI risk (Triple Whammy component).",
+    ("glipizide", "alcohol"): "Major: Increased risk of severe hypoglycemia.",
+    ("metformin", "cimetidine"): "Moderate: Cimetidine increases Metformin levels, raising hypoglycemia risk.",
+    ("furosemide", "vancomycin"): "Moderate: Increased risk of ototoxicity and AKI.",
 }
 
 def check_interaction(drug1, drug2):
