@@ -97,20 +97,23 @@ def check_interaction(drug1, drug2):
 
 
 # -----------------------------
-# Page Setup & Navigation
+# Page Setup & Navigation (New Streamlined Design)
 # -----------------------------
 st.set_page_config(page_title="ADE Shield", layout="wide")
-st.sidebar.title("ADE Shield Menu")
-
-menu = st.sidebar.selectbox(
-    "Select Tool",
-    ["Live Dashboard", "Risk Calculator", "CSV Upload", "Medication Checker", "Chatbot"]
-)
-
 st.title("ADE Shield – Clinical Support Dashboard")
 
+# Use st.radio for streamlined selection in the sidebar
+with st.sidebar:
+    st.title("ADE Shield Menu")
+    menu = st.radio(
+        "Select Application View",
+        ["Live Dashboard", "Risk Calculator", "Medication Checker", "Chatbot", "CSV Upload"],
+        index=0 # Default to Live Dashboard
+    )
+
+
 # ---------------------------------------------------
-# PAGE 0 – LIVE DASHBOARD (GENERALIZED VIEW - MODIFIED)
+# PAGE 0 – LIVE DASHBOARD (The Split Screen View - UNMODIFIED)
 # ---------------------------------------------------
 if menu == "Live Dashboard":
     
@@ -293,7 +296,7 @@ elif menu == "Risk Calculator":
 
 
 # ---------------------------------------------------
-# PAGE 2 – CSV Upload (Bulk Analysis - UNMODIFIED)
+# PAGE 2 – CSV Upload (Bulk Analysis)
 # ---------------------------------------------------
 elif menu == "CSV Upload":
     st.subheader("Bulk Patient Risk Analysis")
@@ -311,7 +314,7 @@ elif menu == "CSV Upload":
 
 
 # ---------------------------------------------------
-# PAGE 3 – Medication Checker (UPDATED)
+# PAGE 3 – Medication Checker
 # ---------------------------------------------------
 elif menu == "Medication Checker":
     st.subheader("Drug-Drug Interaction Checker")
@@ -331,7 +334,7 @@ elif menu == "Medication Checker":
 
 
 # ---------------------------------------------------
-# PAGE 4 – Chatbot (UNMODIFIED)
+# PAGE 4 – Chatbot
 # ---------------------------------------------------
 elif menu == "Chatbot":
     st.subheader("Clinical Information Chatbot")
