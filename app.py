@@ -259,10 +259,10 @@ elif menu == "Risk Calculator":
     st.subheader("Manual Multiple-Risk Calculator (High-Detail)")
     st.caption("Adjust the patient factors below to see the predicted risk scores for multiple ADEs.")
 
-    # --- DEMOGRAPHIC & CORE INPUTS (CLEANED) ---
+    # --- DEMOGRAPHIC & CORE INPUTS ---
     st.markdown("#### 👤 Patient Demographics & Core Factors")
     
-    # Core numerical inputs are grouped here
+    # CORRECTED INPUT LAYOUT
     demo_col1, demo_col2, demo_col3 = st.columns(3)
     
     # Column 1: Core Identity
@@ -270,7 +270,7 @@ elif menu == "Risk Calculator":
     gender_calc = demo_col1.selectbox("Gender", ['Male', 'Female'], index=1)
     race_calc = demo_col1.selectbox("Race/Ethnicity", ['Non-Hispanic Black', 'Other'], index=1)
 
-    # Column 2: Vitals & Key Labs (Weight, Height, INR)
+    # Column 2: Vitals & Key Labs 
     weight_calc = demo_col2.number_input("Weight (kg)", 30, 150, 55)
     height_calc = demo_col2.number_input("Height (cm)", 100, 220, 175)
     inr_calc = demo_col2.number_input("INR (if applicable)", 0.5, 10.0, 4.1, format="%.2f")
@@ -290,8 +290,8 @@ elif menu == "Risk Calculator":
     on_anticoag = input_col1.checkbox("Anticoagulant Use", value=True)
     on_antiplatelet = input_col1.checkbox("Antiplatelet Use (Aspirin/Plavix)", value=True)
     
-    # Lifestyle/Acute Factors
-    uncontrolled_bp = input_col1.checkbox("Uncontrolled BP (Systolic > 140)", value=True)
+    # Lifestyle/Acute Factors (consolidated under Bleeding)
+    uncontrolled_bp = input_col1.checkbox("Uncontrolled BP (Systolic > 140)", value=True) 
     smoking_calc = input_col1.checkbox("Current Smoker", value=True) 
     alcohol_use = input_col1.checkbox("Heavy Alcohol Use", value=True)
     antibiotic_order = input_col1.checkbox("New Antibiotic Order", value=True)
@@ -317,7 +317,7 @@ elif menu == "Risk Calculator":
 
 
     # --- CALCULATIONS ---
-    # The functions are called with variables sourced from the new input locations.
+    # Passing new demographic factors to the calculation functions
     bleeding_risk = calculate_bleeding_risk(age_calc, inr_calc, on_anticoag, hist_gi_bleed, uncontrolled_bp, on_antiplatelet, gender_calc, weight_calc, smoking_calc, alcohol_use, antibiotic_order, dietary_change, liver_disease, prior_stroke)
     hypoglycemia_risk = calculate_hypoglycemia_risk(on_insulin, impaired_renal, high_hba1c, neuropathy_history, gender_calc, weight_calc, recent_dka)
     aki_risk = calculate_aki_risk(age_calc, on_diuretic, on_acei_arb, uncontrolled_bp, active_chemo, gender_calc, weight_calc, race_calc, baseline_creat, contrast_exposure)
@@ -327,15 +327,27 @@ elif menu == "Risk Calculator":
     st.markdown("---")
     
     # --- OUTPUTS ---
+    # 1. Display Metrics
     output_col1, output_col2, output_col3, output_col4 = st.columns(4)
     output_col1.metric("Bleeding Risk", f"{bleeding_risk}%", "CRITICAL ALERT")
     output_col2.metric("Hypoglycemia Risk", f"{hypoglycemia_risk}%", "CRITICAL ALERT")
     output_col3.metric("AKI Risk (Renal)", f"{aki_risk}%", "HIGH ALERT")
     output_col4.metric("Clinical Fragility Index", f"{comorbidity_load}%", "CRITICAL ALERT")
 
+    # 2. Determine and Display Specific Alert
+    max_risk = max(bleeding_risk, hypoglycemia_risk, aki_risk)
+    
+    if max_risk >= 70:
+        if bleeding_risk == max_risk:
+            alert_message = "🔴 CRITICAL ALERT: Highest threat is **Bleeding Risk** due to Anticoagulation/INR instability."
+        elif hypoglycemia_risk == max_risk:
+            alert_message = "🔴 CRITICAL ALERT: Highest threat is **Hypoglycemia Risk** due to Renal Impairment/High Insulin sensitivity."
+        elif aki_risk == max_risk:
+            alert_message = "🔴 CRITICAL ALERT: Highest threat is **AKI Risk** due to Nephrotoxic Drug Combination or Baseline Kidney Damage."
+        else:
+            alert_message = "HIGH RISK ALERT: Check specific patient risks." # Fallback for equality cases or if logic missed a path
 
-    if bleeding_risk >= 70 or hypoglycemia_risk >= 70 or aki_risk >= 70:
-        st.error("🚨 HIGH RISK ALERT: Check specific patient risks.")
+        st.error(alert_message)
     else:
         st.success("Patient risk is manageable. Monitoring is sufficient.")
 
