@@ -23,7 +23,7 @@ def calculate_bleeding_risk(age, inr, anticoagulant, gi_bleed, high_bp, antiplat
     
     # Chronic / Management / Demographics Factors
     score += 10 if age > 70 else 0
-    score += 10 if high_bp else 0
+    score += 10 if high_bp else 0 # Checked by Uncontrolled BP checkbox
     score += 10 if smoking else 0
     score += 5 if gender == 'Female' else 0
     score += 15 if weight > 120 or weight < 50 else 0
@@ -56,7 +56,7 @@ def calculate_aki_risk(age, diuretic_use, acei_arb_use, high_bp, active_chemo, g
     
     # Chronic / Management / Demographics Factors
     score += 20 if age > 75 else 0
-    score += 10 if high_bp else 0
+    score += 10 if high_bp else 0 # Checked by Uncontrolled BP checkbox
     score += 20 if active_chemo else 0
     score += 15 if race == 'Non-Hispanic Black' else 0
     score += 30 if baseline_creat > 1.5 else 0 
@@ -78,7 +78,7 @@ def calculate_comorbidity_load(prior_stroke, active_chemo, recent_dka, liver_dis
 
 
 # -----------------------------
-# SIMPLE CHATBOT (UNMODIFIED)
+# SIMPLE CHATBOT & INTERACTIONS (UNMODIFIED)
 # -----------------------------
 def chatbot_response(text):
     text = text.lower()
@@ -88,7 +88,7 @@ def chatbot_response(text):
         "aki": "Acute Kidney Injury risk is elevated by certain blood pressure medications (ACEi/ARBs) and diuretics.",
         "metformin": "Metformin is a first-line diabetes drug but is strictly avoided in severe kidney impairment.",
         "acei": "ACE inhibitors are critical for hypertension but increase the risk of AKI, especially when combined with diuretics.",
-        "doac": "Direct Oral Anticoagulants (like Apixaban) are used for clotting, but their dose must be adjusted for impaired renal function.",
+        "doac": "Direct Oral Anticoagulants (like Apixaban) is used for clotting, but their dose must be adjusted for impaired renal function.",
         "sulfonylurea": "Sulfonylureas stimulate insulin release and have a high risk of causing severe hypoglycemia.",
         "diabetes": "Diabetes requires strict blood sugar monitoring; poor control (high HbA1c) increases hypoglycemia risk.",
         "hypertension": "Uncontrolled hypertension increases cardiovascular risk and stresses kidney function.",
@@ -100,9 +100,6 @@ def chatbot_response(text):
     
     return "I need more specific clinical context. Please refine your query using drug classifications, risk factors, or one of the major ADE categories (Bleeding, Hypoglycemia, AKI)."
 
-# -----------------------------
-# EXPANDED DRUG INTERACTIONS (UNMODIFIED)
-# -----------------------------
 interaction_db = {
     ("warfarin", "amiodarone"): "Major: Amiodaride increases INR, high bleeding risk.",
     ("warfarin", "ibuprofen"): "Major: NSAIDs increase bleeding risk with Warfarin.",
@@ -147,12 +144,11 @@ if menu == "Live Dashboard":
     
     st.subheader("General Patient Risk Overview")
 
-    # Metrics Display (Now showing 4 metrics for completeness, though only 3 are ADEs)
     col_metrics = st.columns(4)
     col_metrics[0].metric("Bleeding Risk", "60%", "MED")
     col_metrics[1].metric("Hypoglycemia Risk", "92%", "CRITICAL")
     col_metrics[2].metric("AKI Risk (Renal)", "80%", "HIGH")
-    col_metrics[3].metric("Comorbidity Load", "75%", "HIGH") # New Metric Added Here
+    col_metrics[3].metric("Comorbidity Load", "75%", "HIGH")
 
     st.markdown("---")
     
@@ -267,74 +263,76 @@ elif menu == "Risk Calculator":
     # --- DEMOGRAPHIC & CORE INPUTS ---
     st.markdown("#### 👤 Patient Demographics & Core Factors")
     
-    # NEW INPUT LAYOUT AND VALUES
+    # CORRECTED INPUT LAYOUT
     demo_col1, demo_col2, demo_col3 = st.columns(3)
+    
+    # Column 1: Core Identity
     age_calc = demo_col1.number_input("Age", 18, 100, 78)
     gender_calc = demo_col1.selectbox("Gender", ['Male', 'Female'], index=1)
     race_calc = demo_col1.selectbox("Race/Ethnicity", ['Non-Hispanic Black', 'Other'], index=1)
 
+    # Column 2: Vitals & Key Labs (Weight, Height, INR, Smoking)
     weight_calc = demo_col2.number_input("Weight (kg)", 30, 150, 55)
     height_calc = demo_col2.number_input("Height (cm)", 100, 220, 175)
-    smoking_calc = demo_col2.checkbox("Current Smoker", value=True) # Used for Comorbidity Load
+    inr_calc = demo_col2.number_input("INR (if applicable)", 0.5, 10.0, 4.1, format="%.2f")
+    smoking_calc = demo_col2.checkbox("Current Smoker", value=True) # MOVED HERE
 
+    # Column 3: Baseline Risks (Creatinine, BP)
     baseline_creat = demo_col3.number_input("Baseline Creatinine (mg/dL)", 0.5, 5.0, 0.9, format="%.1f") 
-    uncontrolled_bp = demo_col3.checkbox("Uncontrolled BP (Systolic > 140)", value=True) # Used for Comorbidity Load
+    uncontrolled_bp = demo_col3.checkbox("Uncontrolled BP (Systolic > 140)", value=True) # MOVED HERE
     
     st.markdown("---")
     
     # --- ACUTE & CHRONIC INPUTS ---
     input_col1, input_col2, input_col3 = st.columns(3)
     
-    # Column 1: Bleeding & GI Factors
+    # Column 1: Bleeding & GI Factors (All lifestyle/acute INR factors)
     st.markdown("#### 🩸 Bleeding & GI Factors")
-    prior_stroke = input_col1.checkbox("History of Stroke/TIA", value=True) # Used for Comorbidity Load
+    prior_stroke = input_col1.checkbox("History of Stroke/TIA", value=True) 
     on_anticoag = input_col1.checkbox("Anticoagulant Use", value=True)
     hist_gi_bleed = input_col1.checkbox("History of GI Bleed", value=True)
     on_antiplatelet = input_col1.checkbox("Antiplatelet Use (Aspirin/Plavix)", value=True)
     
-    # INR Specific Factors
-    inr_calc = input_col1.number_input("INR (if applicable)", 0.5, 10.0, 4.1, format="%.2f")
+    # INR Specific Factors (consolidated under the Bleeding column)
     alcohol_use = input_col1.checkbox("Heavy Alcohol Use", value=True)
     antibiotic_order = input_col1.checkbox("New Antibiotic Order", value=True)
     dietary_change = input_col1.checkbox("Significant Dietary Change (Vit K)", value=False)
-    liver_disease = input_col1.checkbox("History of Liver Disease", value=True) # Used for Comorbidity Load
+    liver_disease = input_col1.checkbox("History of Liver Disease", value=True)
 
 
-    # Column 2: Diabetes & Renal Factors
+    # Column 2: Diabetes & Renal Factors (Unmodified)
     st.markdown("#### 🦠 Diabetes & Renal Factors")
     on_insulin = input_col2.checkbox("Insulin/High-Risk DM Meds", value=True)
     high_hba1c = input_col2.checkbox("HbA1c > 9.0% (Poor DM Control)", value=True)
     neuropathy_history = input_col2.checkbox("History of Neuropathy/Ulcer", value=False)
     impaired_renal = input_col2.checkbox("Impaired Renal Status", value=True)
-    recent_dka = input_col2.checkbox("Recent DKA/HHS Admission", value=True) # Used for Comorbidity Load
+    recent_dka = input_col2.checkbox("Recent DKA/HHS Admission", value=True)
 
 
-    # Column 3: Cardiovascular & Cancer Factors
+    # Column 3: Cardiovascular & Cancer Factors (Unmodified)
     st.markdown("#### ❤️ Cardio & Other Risks")
     on_acei_arb = input_col3.checkbox("ACEi/ARB Therapy", value=False)
     on_diuretic = input_col3.checkbox("Diuretic Use", value=False)
-    active_chemo = input_col3.checkbox("Active Chemotherapy", value=True) # Used for Comorbidity Load
+    active_chemo = input_col3.checkbox("Active Chemotherapy", value=True)
     contrast_exposure = input_col3.checkbox("Recent Contrast Dye Exposure", value=False)
 
 
     # --- CALCULATIONS ---
-    # 1. Calculate the three ADE risks
+    # Passing new demographic factors to the calculation functions
     bleeding_risk = calculate_bleeding_risk(age_calc, inr_calc, on_anticoag, hist_gi_bleed, uncontrolled_bp, on_antiplatelet, gender_calc, weight_calc, smoking_calc, alcohol_use, antibiotic_order, dietary_change, liver_disease, prior_stroke)
     hypoglycemia_risk = calculate_hypoglycemia_risk(on_insulin, impaired_renal, high_hba1c, neuropathy_history, gender_calc, weight_calc, recent_dka)
     aki_risk = calculate_aki_risk(age_calc, on_diuretic, on_acei_arb, uncontrolled_bp, active_chemo, gender_calc, weight_calc, race_calc, baseline_creat, contrast_exposure)
-    
-    # 2. Calculate the Comorbidity Load Score
     comorbidity_load = calculate_comorbidity_load(prior_stroke, active_chemo, recent_dka, liver_disease, smoking_calc, uncontrolled_bp)
 
 
     st.markdown("---")
     
     # --- OUTPUTS ---
-    output_col1, output_col2, output_col3, output_col4 = st.columns(4) # Split into 4 columns
+    output_col1, output_col2, output_col3, output_col4 = st.columns(4)
     output_col1.metric("Bleeding Risk", f"{bleeding_risk}%", "CRITICAL ALERT")
     output_col2.metric("Hypoglycemia Risk", f"{hypoglycemia_risk}%", "CRITICAL ALERT")
     output_col3.metric("AKI Risk (Renal)", f"{aki_risk}%", "HIGH ALERT")
-    output_col4.metric("Comorbidity Load", f"{comorbidity_load}%", "HIGH ALERT") # The New Metric!
+    output_col4.metric("Clinical Fragility Index", f"{comorbidity_load}%", "CRITICAL ALERT") # Renamed Metric!
 
 
     if bleeding_risk >= 70 or hypoglycemia_risk >= 70 or aki_risk >= 70:
