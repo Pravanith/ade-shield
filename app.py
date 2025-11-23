@@ -6,8 +6,13 @@ import altair as alt
 # CORE MODELING LOGIC (CLINICAL DETAIL + DEMOGRAPHICS)
 # -----------------------------
 
-def calculate_bleeding_risk(age, inr, anticoagulant, gi_bleed, high_bp, antiplatelet_use, gender, weight, smoking, alcohol_use, antibiotic_order, dietary_change, liver_disease, prior_stroke):
+def calculate_bleeding_risk(age, inr, anticoagulant, gi_bleed, high_bp, antiplatelet_use, gender, weight, smoking, alcohol_use, antibiotic_order, dietary_change, icd_codes):
     """Predicts bleeding risk, factoring in underlying conditions and patient demographics."""
+    
+    # Check for ICD-10 codes that imply Bleeding Risk factors
+    has_stroke = any(code.startswith('I63') for code in icd_codes)
+    has_liver_disease = any(code.startswith('K74') for code in icd_codes)
+
     score = 0
     # Acute / Drug Factors
     score += 35 if anticoagulant else 0
@@ -18,7 +23,7 @@ def calculate_bleeding_risk(age, inr, anticoagulant, gi_bleed, high_bp, antiplat
     # New Acute/Lifestyle Factors
     score += 25 if antibiotic_order else 0 
     score += 15 if alcohol_use else 0     
-    score += 20 if liver_disease else 0   
+    score += 20 if has_liver_disease else 0  # Now uses ICD code check
     score += 10 if dietary_change else 0  
     
     # Chronic / Management / Demographics Factors
@@ -27,7 +32,7 @@ def calculate_bleeding_risk(age, inr, anticoagulant, gi_bleed, high_bp, antiplat
     score += 10 if smoking else 0
     score += 5 if gender == 'Female' else 0
     score += 15 if weight > 120 or weight < 50 else 0
-    score += 15 if prior_stroke else 0 
+    score += 15 if has_stroke else 0 # Now uses ICD code check
     
     return min(score, 100)
 
@@ -63,13 +68,17 @@ def calculate_aki_risk(age, diuretic_use, acei_arb_use, high_bp, active_chemo, g
     
     return min(score, 100)
 
-def calculate_comorbidity_load(prior_stroke, active_chemo, recent_dka, liver_disease, smoking, high_bp):
+def calculate_comorbidity_load(icd_codes, active_chemo, recent_dka, smoking, high_bp):
     """Calculates a composite score representing the patient's overall disease burden and clinical fragility."""
+    
+    has_stroke = any(code.startswith('I63') for code in icd_codes)
+    has_liver_disease = any(code.startswith('K74') for code in icd_codes)
+
     load = 0
-    load += 25 if prior_stroke else 0
+    load += 25 if has_stroke else 0 # Now uses ICD code check
+    load += 15 if has_liver_disease else 0 # Now uses ICD code check
     load += 30 if active_chemo else 0
     load += 20 if recent_dka else 0
-    load += 15 if liver_disease else 0
     load += 10 if smoking else 0
     load += 10 if high_bp else 0
     
@@ -113,7 +122,6 @@ interaction_db = {
 }
 
 def check_interaction(drug1, drug2):
-    """Checks for simple predefined drug interactions."""
     d1, d2 = drug1.lower().strip(), drug2.lower().strip()
     if (d1, d2) in interaction_db:
         return interaction_db[(d1, d2)]
@@ -145,8 +153,8 @@ if menu == "Live Dashboard":
 
     col_metrics = st.columns(4)
     col_metrics[0].metric("Bleeding Risk", "60%", "MED")
-    col_metrics[1].metric("Hypoglycemia Risk (High Alert)", "92%", "CRITICAL")
-    col_metrics[2].metric("AKI Risk (High Alert)", "80%", "HIGH")
+    col_metrics[1].metric("Hypoglycemia Risk", "92%", "CRITICAL")
+    col_metrics[2].metric("AKI Risk (Renal)", "80%", "HIGH")
     col_metrics[3].metric("Clinical Fragility Index", "75%", "HIGH")
 
     st.markdown("---")
@@ -278,6 +286,10 @@ elif menu == "Risk Calculator":
     # Column 3: Baseline Risks (Creatinine)
     baseline_creat = demo_col3.number_input("Baseline Creatinine (mg/dL)", 0.5, 5.0, 0.9, format="%.1f") 
     
+    # New ICD Input
+    icd_input = st.text_input("ICD-10 Diagnosis Codes (e.g., I63.9, K74.6)", value="I63.9, K74.6")
+    icd_codes = [code.strip() for code in icd_input.split(',') if code.strip()] # Process input string
+
     st.markdown("---")
     
     # --- ACUTE & CHRONIC INPUTS (CHECKBOXES MOVED HERE) ---
@@ -285,18 +297,18 @@ elif menu == "Risk Calculator":
     
     # Column 1: Bleeding & GI Factors (Consolidated)
     st.markdown("#### 🩸 Bleeding & GI Factors")
-    prior_stroke = input_col1.checkbox("History of Stroke/TIA", value=True) 
+    prior_stroke_check = input_col1.checkbox("History of Stroke/TIA (Calculated via ICD-10)", disabled=True) 
     hist_gi_bleed = input_col1.checkbox("History of GI Bleed", value=True)
     on_anticoag = input_col1.checkbox("Anticoagulant Use", value=True)
     on_antiplatelet = input_col1.checkbox("Antiplatelet Use (Aspirin/Plavix)", value=True)
     
     # Lifestyle/Acute Factors (consolidated under Bleeding)
-    uncontrolled_bp = input_col1.checkbox("Uncontrolled BP (Systolic > 140)", value=True) 
-    smoking_calc = input_col1.checkbox("Current Smoker", value=True) 
+    uncontrolled_bp = input_col1.checkbox("Uncontrolled BP (Systolic > 140)", value=True) # MOVED HERE
+    smoking_calc = input_col1.checkbox("Current Smoker", value=True) # MOVED HERE
     alcohol_use = input_col1.checkbox("Heavy Alcohol Use", value=True)
     antibiotic_order = input_col1.checkbox("New Antibiotic Order", value=True)
     dietary_change = input_col1.checkbox("Significant Dietary Change (Vit K)", value=False)
-    liver_disease = input_col1.checkbox("History of Liver Disease", value=True)
+    liver_disease_check = input_col1.checkbox("History of Liver Disease (Calculated via ICD-10)", disabled=True)
 
 
     # Column 2: Diabetes & Renal Factors (Unmodified)
@@ -317,17 +329,24 @@ elif menu == "Risk Calculator":
 
 
     # --- CALCULATIONS ---
+    # Convert ICD-10 codes for use in risk functions
+    has_stroke = any(code.startswith('I63') for code in icd_codes)
+    has_liver_disease = any(code.startswith('K74') for code in icd_codes)
+    
+    # Ensure the disabled checkboxes reflect the ICD logic
+    prior_stroke_check = has_stroke
+    liver_disease_check = has_liver_disease
+    
     # Passing new demographic factors to the calculation functions
-    bleeding_risk = calculate_bleeding_risk(age_calc, inr_calc, on_anticoag, hist_gi_bleed, uncontrolled_bp, on_antiplatelet, gender_calc, weight_calc, smoking_calc, alcohol_use, antibiotic_order, dietary_change, liver_disease, prior_stroke)
+    bleeding_risk = calculate_bleeding_risk(age_calc, inr_calc, on_anticoag, hist_gi_bleed, uncontrolled_bp, on_antiplatelet, gender_calc, weight_calc, smoking_calc, alcohol_use, antibiotic_order, dietary_change, has_liver_disease, has_stroke)
     hypoglycemia_risk = calculate_hypoglycemia_risk(on_insulin, impaired_renal, high_hba1c, neuropathy_history, gender_calc, weight_calc, recent_dka)
     aki_risk = calculate_aki_risk(age_calc, on_diuretic, on_acei_arb, uncontrolled_bp, active_chemo, gender_calc, weight_calc, race_calc, baseline_creat, contrast_exposure)
-    comorbidity_load = calculate_comorbidity_load(prior_stroke, active_chemo, recent_dka, liver_disease, smoking_calc, uncontrolled_bp)
+    comorbidity_load = calculate_comorbidity_load(has_stroke, active_chemo, recent_dka, has_liver_disease, smoking_calc, uncontrolled_bp)
 
 
     st.markdown("---")
     
     # --- OUTPUTS ---
-    # 1. Display Metrics
     output_col1, output_col2, output_col3, output_col4 = st.columns(4)
     output_col1.metric("Bleeding Risk", f"{bleeding_risk}%", "CRITICAL ALERT")
     output_col2.metric("Hypoglycemia Risk", f"{hypoglycemia_risk}%", "CRITICAL ALERT")
@@ -350,54 +369,3 @@ elif menu == "Risk Calculator":
         st.error(alert_message)
     else:
         st.success("Patient risk is manageable. Monitoring is sufficient.")
-
-# ---------------------------------------------------
-# PAGE 2 – CSV Upload (Bulk Analysis - UNMODIFIED)
-# ---------------------------------------------------
-elif menu == "CSV Upload":
-    st.subheader("Bulk Patient Risk Analysis")
-
-    st.markdown("Upload a CSV file with columns for all relevant factors.")
-    st.info("NOTE: CSV must include all factor flags (e.g., `age`, `inr`, `gender`, `weight`, `on_antiplatelet`, `high_hba1c`, `active_chemo`, etc. as 1=Yes, 0=No).")
-    
-    uploaded = st.file_uploader("Upload CSV File", type="csv")
-
-    if uploaded:
-        df = pd.read_csv(uploaded)
-
-        st.warning("Bulk analysis is highly complex due to many required columns.")
-        st.dataframe(df.head())
-
-
-# ---------------------------------------------------
-# PAGE 3 – Medication Checker (UNMODIFIED)
-# ---------------------------------------------------
-elif menu == "Medication Checker":
-    st.subheader("Drug-Drug Interaction Checker")
-    st.caption("Demo: Tests interactions against a small, hard-coded database.")
-    
-    d1 = st.text_input("Drug 1 (e.g., Warfarin)")
-    d2 = st.text_input("Drug 2 (e.g., Amiodarone)")
-    
-    if d1 and d2:
-        interaction = check_interaction(d1, d2)
-        if "Major" in interaction:
-            st.error(f"Interaction Result: {interaction}")
-        elif "Moderate" in interaction:
-            st.warning(f"Interaction Result: {interaction}")
-        else:
-            st.success(f"Interaction Result: {interaction}")
-
-
-# ---------------------------------------------------
-# PAGE 4 – Chatbot (UNMODIFIED)
-# ---------------------------------------------------
-elif menu == "Chatbot":
-    st.subheader("Clinical Information Chatbot")
-    st.caption("Ask quick questions about the data and model logic (e.g., 'What about bleeding risk?').")
-    
-    user_input = st.text_input("Ask a question:")
-    
-    if user_input:
-        response = chatbot_response(user_input)
-        st.info(response)
