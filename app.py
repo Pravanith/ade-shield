@@ -3,7 +3,18 @@ import pandas as pd
 import altair as alt
 
 # -----------------------------
-# CORE MODELING LOGIC (CLINICAL DETAIL + DEMOGRAPHICS)
+# SESSION STATE INITIALIZATION
+# -----------------------------
+if 'patient_loaded' not in st.session_state:
+    st.session_state['patient_loaded'] = False
+    st.session_state['bleeding_risk'] = 0
+    st.session_state['hypoglycemic_risk'] = 0
+    st.session_state['aki_risk'] = 0
+    st.session_state['fragility_index'] = 0
+    st.session_state['patient_info'] = {'age': 70, 'gender': 'Male', 'weight': 75} # Default profile
+
+# -----------------------------
+# CORE MODELING LOGIC (FUNCTIONS)
 # -----------------------------
 
 def calculate_bleeding_risk(age, inr, anticoagulant, gi_bleed, high_bp, antiplatelet_use, gender, weight, smoking, alcohol_use, antibiotic_order, dietary_change, liver_disease, prior_stroke):
@@ -34,33 +45,25 @@ def calculate_bleeding_risk(age, inr, anticoagulant, gi_bleed, high_bp, antiplat
 def calculate_hypoglycemia_risk(insulin_use, renal_status, high_hba1c, neuropathy_history, gender, weight, recent_dka):
     """Predicts low blood sugar risk, factoring in diabetes control status and severe events."""
     score = 0
-    # Acute / Drug Factors
     score += 30 if insulin_use else 0
     score += 45 if renal_status else 0
-    
-    # Chronic / Management / Demographics Factors
     score += 20 if high_hba1c else 0
     score += 10 if neuropathy_history else 0
     score += 10 if weight < 60 else 0
     score += 20 if recent_dka else 0 
-    
     return min(score, 100)
 
 def calculate_aki_risk(age, diuretic_use, acei_arb_use, high_bp, active_chemo, gender, weight, race, baseline_creat, contrast_exposure):
     """Predicts Acute Kidney Injury (AKI) risk from drug classes and co-existing conditions, including acute events."""
     score = 0
-    # Acute / Drug Factors
     score += 30 if diuretic_use else 0
     score += 40 if acei_arb_use else 0
     score += 25 if contrast_exposure else 0 
-    
-    # Chronic / Management / Demographics Factors
     score += 20 if age > 75 else 0
     score += 10 if high_bp else 0
     score += 20 if active_chemo else 0
     score += 15 if race == 'Non-Hispanic Black' else 0
     score += 30 if baseline_creat > 1.5 else 0 
-    
     return min(score, 100)
 
 def calculate_comorbidity_load(prior_stroke, active_chemo, recent_dka, liver_disease, smoking, high_bp):
@@ -72,12 +75,11 @@ def calculate_comorbidity_load(prior_stroke, active_chemo, recent_dka, liver_dis
     load += 15 if liver_disease else 0
     load += 10 if smoking else 0
     load += 10 if high_bp else 0
-    
     return min(load, 100)
 
 
 # -----------------------------
-# SIMPLE CHATBOT & INTERACTIONS (UNMODIFIED)
+# SIMPLE CHATBOT 
 # -----------------------------
 def chatbot_response(text):
     text = text.lower()
@@ -99,7 +101,11 @@ def chatbot_response(text):
     
     return "I need more specific clinical context. Please refine your query using drug classifications, risk factors, or one of the major ADE categories (Bleeding, Hypoglycemia, AKI)."
 
+# -----------------------------
+# EXPANDED DRUG INTERACTIONS (NEW CONTENT ADDED)
+# -----------------------------
 interaction_db = {
+    # --- Existing High Risks (Bleeding, AKI, Hypoglycemia) ---
     ("warfarin", "amiodarone"): "Major: Amiodaride increases INR, high bleeding risk.",
     ("warfarin", "ibuprofen"): "Major: NSAIDs increase bleeding risk with Warfarin.",
     ("apixaban", "ibuprofen"): "Moderate: NSAIDs increase bleeding risk with Apixaban.",
@@ -110,6 +116,12 @@ interaction_db = {
     ("furosemide", "lisinopril"): "Major: Diuretic + ACEi causes severe hypotension and AKI risk.",
     ("glipizide", "alcohol"): "Major: Increased risk of severe hypoglycemia.",
     ("trimethoprim/sulfamethoxazole", "metformin"): "Major: TMP/SMX increases Metformin levels, high hypoglycemia risk.",
+    
+    # --- NEW: Cardiac and Neurological Toxicity Risks ---
+    ("metoprolol", "diltiazem"): "Major: Both slow heart rate/BP. High risk of severe bradycardia and hypotension.", # Cardio
+    ("azithromycin", "amiodarone"): "Major: Both prolong QT interval. High risk of Torsades de Pointes (fatal arrhythmia).", # Cardiac Toxicity
+    ("sertraline", "sumatriptan"): "Major: Both increase serotonin. High risk of Serotonin Syndrome (confusion, fever).", # Neurological
+    ("prednisone", "furosemide"): "Major: Steroid + Diuretic severely increases risk of hypokalemia (low potassium).", # Electrolyte/Fluid
 }
 
 def check_interaction(drug1, drug2):
@@ -145,8 +157,8 @@ if menu == "Live Dashboard":
 
     col_metrics = st.columns(4)
     col_metrics[0].metric("Bleeding Risk", "60%", "MED")
-    col_metrics[1].metric("Hypoglycemia Risk (High Alert)", "92%", "CRITICAL")
-    col_metrics[2].metric("AKI Risk (High Alert)", "80%", "HIGH")
+    col_metrics[1].metric("Hypoglycemic Risk", "92%", "CRITICAL")
+    col_metrics[2].metric("AKI Risk (Renal)", "80%", "HIGH")
     col_metrics[3].metric("Clinical Fragility Index", "75%", "HIGH")
 
     st.markdown("---")
@@ -162,7 +174,7 @@ if menu == "Live Dashboard":
         st.markdown('<div style="background-color:#B30000; color:white; padding:10px; border-radius:5px;">'
                     '**Patient A** (Room 302)<br>'
                     '🔴 **Risk: 92% (CRITICAL)**<br>'
-                    '*Issue: Hypoglycemia Risk*</div>', 
+                    '*Issue: Hypoglycemic Risk*</div>', 
                     unsafe_allow_html=True)
         
         # 2. High Risk Patient
@@ -201,8 +213,8 @@ if menu == "Live Dashboard":
         # The Big Score
         metric_col1, metric_col2 = st.columns([2, 4])
         with metric_col1:
-            st.metric(label="Hypoglycemia Probability", value="92%", delta="CRITICAL")
-        with metric_col2:
+            st.metric(label="Hypoglycemic Probability", value="92%", delta="CRITICAL")
+        with col_right:
             st.markdown("#### 🚨 Primary Risk: Severe Hypoglycemia Event")
             st.markdown("Prediction window: Next 24 Hours")
 
@@ -253,7 +265,7 @@ if menu == "Live Dashboard":
         st.button("❌ Snooze Alert")
 
 # ---------------------------------------------------
-# PAGE 1 – Risk Calculator (Manual Input)
+# PAGE 1 – Risk Calculator (Input/Calculation)
 # ---------------------------------------------------
 elif menu == "Risk Calculator":
     st.subheader("Manual Multiple-Risk Calculator (High-Detail)")
@@ -296,7 +308,7 @@ elif menu == "Risk Calculator":
     alcohol_use = input_col1.checkbox("Heavy Alcohol Use", value=True)
     antibiotic_order = input_col1.checkbox("New Antibiotic Order", value=True)
     dietary_change = input_col1.checkbox("Significant Dietary Change (Vit K)", value=False)
-    liver_disease = input_col1.checkbox("History of Liver Disease", value=True)
+    liver_disease = input_col1.checkbox("History of Liver Disease", value=True) 
 
 
     # Column 2: Diabetes & Renal Factors (Unmodified)
@@ -319,7 +331,7 @@ elif menu == "Risk Calculator":
     # --- CALCULATIONS ---
     # Passing new demographic factors to the calculation functions
     bleeding_risk = calculate_bleeding_risk(age_calc, inr_calc, on_anticoag, hist_gi_bleed, uncontrolled_bp, on_antiplatelet, gender_calc, weight_calc, smoking_calc, alcohol_use, antibiotic_order, dietary_change, liver_disease, prior_stroke)
-    hypoglycemia_risk = calculate_hypoglycemia_risk(on_insulin, impaired_renal, high_hba1c, neuropathy_history, gender_calc, weight_calc, recent_dka)
+    hypoglycemic_risk = calculate_hypoglycemic_risk(on_insulin, impaired_renal, high_hba1c, neuropathy_history, gender_calc, weight_calc, recent_dka)
     aki_risk = calculate_aki_risk(age_calc, on_diuretic, on_acei_arb, uncontrolled_bp, active_chemo, gender_calc, weight_calc, race_calc, baseline_creat, contrast_exposure)
     comorbidity_load = calculate_comorbidity_load(prior_stroke, active_chemo, recent_dka, liver_disease, smoking_calc, uncontrolled_bp)
 
@@ -327,77 +339,49 @@ elif menu == "Risk Calculator":
     st.markdown("---")
     
     # --- OUTPUTS ---
-    # 1. Display Metrics
     output_col1, output_col2, output_col3, output_col4 = st.columns(4)
     output_col1.metric("Bleeding Risk", f"{bleeding_risk}%", "CRITICAL ALERT")
-    output_col2.metric("Hypoglycemia Risk", f"{hypoglycemia_risk}%", "CRITICAL ALERT")
+    output_col2.metric("Hypoglycemic Risk", f"{hypoglycemic_risk}%", "CRITICAL ALERT")
     output_col3.metric("AKI Risk (Renal)", f"{aki_risk}%", "HIGH ALERT")
     output_col4.metric("Clinical Fragility Index", f"{comorbidity_load}%", "CRITICAL ALERT")
 
+
     # 2. Determine and Display Specific Alert
-    max_risk = max(bleeding_risk, hypoglycemia_risk, aki_risk)
+    max_risk = max(bleeding_risk, hypoglycemic_risk, aki_risk)
     
     if max_risk >= 70:
+        # Gather all inputs into a dictionary for easy passing to the alert function
+        inputs = {
+            'inr': inr_calc, 'antibiotic_order': antibiotic_order, 'on_antiplatelet': on_antiplatelet,
+            'alcohol_use': alcohol_use, 'hist_gi_bleed': hist_gi_bleed, 'prior_stroke': prior_stroke,
+            'impaired_renal': impaired_renal, 'high_hba1c': high_hba1c, 'recent_dka': recent_dka,
+            'weight': weight_calc, 'baseline_creat': baseline_creat, 'active_chemo': active_chemo,
+            'on_acei_arb': on_acei_arb, 'on_diuretic': on_diuretic, 'contrast_exposure': contrast_exposure
+        }
+        
+        # Determine the highest risk type for generating the detailed alert
         if bleeding_risk == max_risk:
-            alert_message = "🔴 CRITICAL ALERT: Highest threat is **Bleeding Risk** due to Anticoagulation/INR instability."
-        elif hypoglycemia_risk == max_risk:
-            alert_message = "🔴 CRITICAL ALERT: Highest threat is **Hypoglycemia Risk** due to Renal Impairment/High Insulin sensitivity."
+            risk_type = "Bleeding"
+        elif hypoglycemic_risk == max_risk:
+            risk_type = "Hypoglycemic"
         elif aki_risk == max_risk:
-            alert_message = "🔴 CRITICAL ALERT: Highest threat is **AKI Risk** due to Nephrotoxic Drug Combination or Baseline Kidney Damage."
+            risk_type = "AKI"
         else:
-            alert_message = "HIGH RISK ALERT: Check specific patient risks." # Fallback for equality cases or if logic missed a path
+            risk_type = "General" # Fallback for equality cases or if logic missed a path
+
+        alert_message = generate_detailed_alert(risk_type, inputs)
 
         st.error(alert_message)
+        
+        # --- THE LOAD BUTTON LOGIC ---
+        if st.button("Load Patient to Dashboard"):
+            # Save the calculated scores and core demographics
+            st.session_state['patient_loaded'] = True
+            st.session_state['bleeding_risk'] = bleeding_risk
+            st.session_state['hypoglycemic_risk'] = hypoglycemic_risk
+            st.session_state['aki_risk'] = aki_risk
+            st.session_state['fragility_index'] = comorbidity_load
+            st.session_state['patient_info'] = {'age': age_calc, 'gender': gender_calc, 'weight': weight_calc}
+            st.toast("Patient data loaded! Switch to Live Dashboard.")
     else:
         st.success("Patient risk is manageable. Monitoring is sufficient.")
-
-# ---------------------------------------------------
-# PAGE 2 – CSV Upload (Bulk Analysis - UNMODIFIED)
-# ---------------------------------------------------
-elif menu == "CSV Upload":
-    st.subheader("Bulk Patient Risk Analysis")
-
-    st.markdown("Upload a CSV file with columns for all relevant factors.")
-    st.info("NOTE: CSV must include all factor flags (e.g., `age`, `inr`, `gender`, `weight`, `on_antiplatelet`, `high_hba1c`, `active_chemo`, etc. as 1=Yes, 0=No).")
-    
-    uploaded = st.file_uploader("Upload CSV File", type="csv")
-
-    if uploaded:
-        df = pd.read_csv(uploaded)
-
-        st.warning("Bulk analysis is highly complex due to many required columns.")
-        st.dataframe(df.head())
-
-
-# ---------------------------------------------------
-# PAGE 3 – Medication Checker (UNMODIFIED)
-# ---------------------------------------------------
-elif menu == "Medication Checker":
-    st.subheader("Drug-Drug Interaction Checker")
-    st.caption("Demo: Tests interactions against a small, hard-coded database.")
-    
-    d1 = st.text_input("Drug 1 (e.g., Warfarin)")
-    d2 = st.text_input("Drug 2 (e.g., Amiodarone)")
-    
-    if d1 and d2:
-        interaction = check_interaction(d1, d2)
-        if "Major" in interaction:
-            st.error(f"Interaction Result: {interaction}")
-        elif "Moderate" in interaction:
-            st.warning(f"Interaction Result: {interaction}")
-        else:
-            st.success(f"Interaction Result: {interaction}")
-
-
-# ---------------------------------------------------
-# PAGE 4 – Chatbot (UNMODIFIED)
-# ---------------------------------------------------
-elif menu == "Chatbot":
-    st.subheader("Clinical Information Chatbot")
-    st.caption("Ask quick questions about the data and model logic (e.g., 'What about bleeding risk?').")
-    
-    user_input = st.text_input("Ask a question:")
-    
-    if user_input:
-        response = chatbot_response(user_input)
-        st.info(response)
