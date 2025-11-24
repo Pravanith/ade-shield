@@ -5,6 +5,7 @@ import altair as alt
 # -----------------------------
 # SESSION STATE INITIALIZATION
 # -----------------------------
+# This creates the temporary memory to hold the patient data between pages
 if 'patient_loaded' not in st.session_state:
     st.session_state['patient_loaded'] = False
     st.session_state['bleeding_risk'] = 0
@@ -14,7 +15,7 @@ if 'patient_loaded' not in st.session_state:
     st.session_state['patient_info'] = {'age': 70, 'gender': 'Male', 'weight': 75} # Default profile
 
 # -----------------------------
-# CORE MODELING LOGIC (FUNCTIONS - FINAL STABLE VERSION)
+# CORE MODELING LOGIC (FUNCTIONS)
 # -----------------------------
 
 def calculate_bleeding_risk(age, inr, anticoagulant, gi_bleed, high_bp, antiplatelet_use, gender, weight, smoking, alcohol_use, antibiotic_order, dietary_change, liver_disease, prior_stroke):
@@ -29,7 +30,7 @@ def calculate_bleeding_risk(age, inr, anticoagulant, gi_bleed, high_bp, antiplat
     # New Acute/Lifestyle Factors
     score += 25 if antibiotic_order else 0 
     score += 15 if alcohol_use else 0     
-    score += 20 if liver_disease else 0   # RESTORED: Uses simple boolean input
+    score += 20 if liver_disease else 0   
     score += 10 if dietary_change else 0  
     
     # Chronic / Management / Demographics Factors
@@ -38,11 +39,11 @@ def calculate_bleeding_risk(age, inr, anticoagulant, gi_bleed, high_bp, antiplat
     score += 10 if smoking else 0
     score += 5 if gender == 'Female' else 0
     score += 15 if weight > 120 or weight < 50 else 0
-    score += 15 if prior_stroke else 0 # RESTORED: Uses simple boolean input
+    score += 15 if prior_stroke else 0 
     
     return min(score, 100)
 
-def calculate_hypoglycemia_risk(insulin_use, renal_status, high_hba1c, neuropathy_history, gender, weight, recent_dka):
+def calculate_hypoglycemic_risk(insulin_use, renal_status, high_hba1c, neuropathy_history, gender, weight, recent_dka):
     """Predicts low blood sugar risk, factoring in diabetes control status and severe events."""
     score = 0
     score += 30 if insulin_use else 0
@@ -76,7 +77,6 @@ def calculate_comorbidity_load(prior_stroke, active_chemo, recent_dka, liver_dis
     load += 10 if smoking else 0
     load += 10 if high_bp else 0
     return min(load, 100)
-
 
 # -----------------------------
 # SIMPLE CHATBOT & INTERACTIONS (UNMODIFIED)
@@ -170,7 +170,7 @@ if menu == "Live Dashboard":
         # If no dynamic data, use the original hardcoded demo data
         br, hr, ar, cfr = 60, 92, 80, 75
         patient = {'age': 65, 'gender': 'Female', 'weight': 55, 'high_a1c': True, 'renal_status': True}
-        primary_threat = "Hypoglycemia Risk"
+        primary_threat = "Hypoglycemic Risk"
         alert_color = "red"
         alert_label = "CRITICAL"
 
@@ -234,7 +234,7 @@ if menu == "Live Dashboard":
 
 
 # ---------------------------------------------------
-# PAGE 1 – Risk Calculator (Manual Input)
+# PAGE 1 – Risk Calculator (Input/Calculation)
 # ---------------------------------------------------
 elif menu == "Risk Calculator":
     st.subheader("Manual Multiple-Risk Calculator (High-Detail)")
@@ -354,54 +354,3 @@ elif menu == "Risk Calculator":
             st.toast("Patient data loaded! Switch to Live Dashboard.")
     else:
         st.success("Patient risk is manageable. Monitoring is sufficient.")
-
-
-# ---------------------------------------------------
-# PAGE 2 – CSV Upload (Bulk Analysis)
-# ---------------------------------------------------
-elif menu == "CSV Upload":
-    st.subheader("Bulk Patient Risk Analysis")
-
-    st.markdown("Upload a CSV file with columns for all relevant factors.")
-    st.info("NOTE: CSV must include all factor flags (e.g., `age`, `inr`, `gender`, `weight`, `on_antiplatelet`, `high_hba1c`, `active_chemo`, etc. as 1=Yes, 0=No).")
-    
-    uploaded = st.file_uploader("Upload CSV File", type="csv")
-
-    # [Code for Bulk Analysis goes here, using the updated logic from previous steps]
-    
-    st.warning("Bulk analysis is highly complex due to many required columns.")
-    st.dataframe(pd.DataFrame({'Sample Patient Age': [70, 65], 'Risk Status': ['High', 'Low']})) # Placeholder display
-    
-    
-# ---------------------------------------------------
-# PAGE 3 – Medication Checker
-# ---------------------------------------------------
-elif menu == "Medication Checker":
-    st.subheader("Drug-Drug Interaction Checker")
-    st.caption("Demo: Tests interactions against a small, hard-coded database.")
-    
-    d1 = st.text_input("Drug 1 (e.g., Warfarin)")
-    d2 = st.text_input("Drug 2 (e.g., Amiodarone)")
-    
-    if d1 and d2:
-        interaction = check_interaction(d1, d2)
-        if "Major" in interaction:
-            st.error(f"Interaction Result: {interaction}")
-        elif "Moderate" in interaction:
-            st.warning(f"Interaction Result: {interaction}")
-        else:
-            st.success(f"Interaction Result: {interaction}")
-
-
-# ---------------------------------------------------
-# PAGE 4 – Chatbot
-# ---------------------------------------------------
-elif menu == "Chatbot":
-    st.subheader("Clinical Information Chatbot")
-    st.caption("Ask quick questions about the data and model logic (e.g., 'What about bleeding risk?').")
-    
-    user_input = st.text_input("Ask a question:")
-    
-    if user_input:
-        response = chatbot_response(user_input)
-        st.info(response)
