@@ -6,6 +6,7 @@ import altair as alt
 # CORE MODELING LOGIC (FUNCTIONS - FINAL COMPREHENSIVE SET)
 # -----------------------------
 
+# FIX: FUNCTION SIGNATURES ARE NOW UPDATED TO USE PROCESSED BOOLEANS
 def calculate_bleeding_risk(age, inr, anticoagulant, gi_bleed, high_bp, antiplatelet_use, gender, weight, smoking, alcohol_use, antibiotic_order, dietary_change, liver_disease, prior_stroke):
     """Predicts bleeding risk, factoring in underlying conditions and patient demographics."""
     score = 0
@@ -67,7 +68,7 @@ def calculate_comorbidity_load(prior_stroke, active_chemo, recent_dka, liver_dis
     return min(load, 100)
 
 # ---------------------------------------------------
-# NEW FUNCTION: GENERATE SPECIFIC ALERT TEXT
+# NEW FUNCTION: GENERATE SPECIFIC ALERT TEXT (UNMODIFIED)
 # ---------------------------------------------------
 
 def generate_detailed_alert(risk_type, inputs):
@@ -171,7 +172,7 @@ with st.sidebar:
     )
 
 # ---------------------------------------------------
-# PAGE 0 – LIVE DASHBOARD (UNMODIFIED)
+# PAGE 0 – LIVE DASHBOARD 
 # ---------------------------------------------------
 if menu == "Live Dashboard":
     
@@ -365,13 +366,13 @@ elif menu == "Risk Calculator":
     # --- OUTPUTS ---
     output_col1, output_col2, output_col3, output_col4 = st.columns(4)
     output_col1.metric("Bleeding Risk", f"{bleeding_risk}%", "CRITICAL ALERT")
-    output_col2.metric("Hypoglycemia Risk", f"{hypoglycemia_risk}%", "CRITICAL ALERT")
+    output_col2.metric("Hypoglycemia Risk", f"{hypoglycemic_risk}%", "CRITICAL ALERT")
     output_col3.metric("AKI Risk (Renal)", f"{aki_risk}%", "HIGH ALERT")
     output_col4.metric("Clinical Fragility Index", f"{comorbidity_load}%", "CRITICAL ALERT")
 
 
     # 2. Determine and Display Specific Alert
-    max_risk = max(bleeding_risk, hypoglycemia_risk, aki_risk)
+    max_risk = max(bleeding_risk, hypoglycemic_risk, aki_risk)
     
     if max_risk >= 70:
         # Gather all inputs into a dictionary for easy passing to the alert function
@@ -386,7 +387,7 @@ elif menu == "Risk Calculator":
         # Determine the highest risk type for generating the detailed alert
         if bleeding_risk == max_risk:
             risk_type = "Bleeding"
-        elif hypoglycemia_risk == max_risk:
+        elif hypoglycemic_risk == max_risk:
             risk_type = "Hypoglycemic"
         elif aki_risk == max_risk:
             risk_type = "AKI"
