@@ -367,6 +367,42 @@ elif menu == "CSV Upload":
 
         st.warning("Bulk analysis is highly complex due to many required columns.")
         st.dataframe(df.head())
+        # --- PAGE 2 – CSV Upload (Bulk Analysis) ---
+elif menu == "CSV Upload":
+    st.subheader("Bulk Patient Risk Analysis")
+
+    st.markdown("Upload patient demographics for acute risk calculation.")
+    
+    # 1. EXISTING CSV UPLOADER (Structured Data)
+    uploaded_csv = st.file_uploader("Upload Patient Demographics (CSV)", type=["csv"])
+
+    # --- NEW JPEG UPLOADER (Unstructured Data) ---
+    st.markdown("#### 🖼️ Upload Medical Images")
+    st.caption("Demonstrate capacity for integrating medical documentation or imaging.")
+    
+    uploaded_image = st.file_uploader("Upload Chest X-Ray or Wound Photo (JPEG)", type=["jpg", "jpeg", "png"])
+    
+    if uploaded_csv:
+        df = pd.read_csv(uploaded_csv)
+
+        # Basic validation check
+        required_cols = {"age", "inr", "gender", "weight", "on_anticoagulant", "high_hba1c"} # Simplified check
+        
+        try:
+            # Display patient table for verification (replace this with actual processing if you add the ML model)
+            st.success("CSV file received for processing.")
+            st.dataframe(df.head())
+
+        except KeyError as e:
+            st.error(f"Error: Missing critical column(s) for analysis.")
+
+    if uploaded_image is not None:
+        # Displaying the image and noting its use
+        st.success(f"Image received: {uploaded_image.name}")
+        st.image(uploaded_image, caption="Image Ready for Processing (e.g., Computer Vision/OCR)", use_column_width=True)
+
+    else:
+        st.info("Upload your CSV and an optional image to begin.")
 
 
 # ---------------------------------------------------
