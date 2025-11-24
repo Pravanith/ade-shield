@@ -14,26 +14,32 @@ if 'patient_loaded' not in st.session_state:
     st.session_state['patient_info'] = {'age': 70, 'gender': 'Male', 'weight': 75} # Default profile
 
 # -----------------------------
-# CORE MODELING LOGIC (FUNCTIONS)
+# CORE MODELING LOGIC (FUNCTIONS - CORRECTED SIGNATURES)
 # -----------------------------
 
 def calculate_bleeding_risk(age, inr, anticoagulant, gi_bleed, high_bp, antiplatelet_use, gender, weight, smoking, alcohol_use, antibiotic_order, dietary_change, liver_disease, prior_stroke):
     """Predicts bleeding risk, factoring in underlying conditions and patient demographics."""
     score = 0
+    # Acute / Drug Factors
     score += 35 if anticoagulant else 0
     score += 40 if inr > 3.5 else 0
     score += 30 if gi_bleed else 0
     score += 15 if antiplatelet_use else 0
+    
+    # New Acute/Lifestyle Factors
     score += 25 if antibiotic_order else 0 
     score += 15 if alcohol_use else 0     
     score += 20 if liver_disease else 0   
     score += 10 if dietary_change else 0  
+    
+    # Chronic / Management / Demographics Factors
     score += 10 if age > 70 else 0
     score += 10 if high_bp else 0
     score += 10 if smoking else 0
     score += 5 if gender == 'Female' else 0
     score += 15 if weight > 120 or weight < 50 else 0
     score += 15 if prior_stroke else 0 
+    
     return min(score, 100)
 
 def calculate_hypoglycemic_risk(insulin_use, renal_status, high_hba1c, neuropathy_history, gender, weight, recent_dka):
@@ -71,8 +77,9 @@ def calculate_comorbidity_load(prior_stroke, active_chemo, recent_dka, liver_dis
     load += 10 if high_bp else 0
     return min(load, 100)
 
+
 # -----------------------------
-# SIMPLE CHATBOT & INTERACTIONS
+# SIMPLE CHATBOT & INTERACTIONS (UNMODIFIED)
 # -----------------------------
 def chatbot_response(text):
     text = text.lower()
@@ -163,7 +170,7 @@ if menu == "Live Dashboard":
         # If no dynamic data, use the original hardcoded demo data
         br, hr, ar, cfr = 60, 92, 80, 75
         patient = {'age': 65, 'gender': 'Female', 'weight': 55, 'high_a1c': True, 'renal_status': True}
-        primary_threat = "Hypoglycemia Risk"
+        primary_threat = "Hypoglycemic Risk"
         alert_color = "red"
         alert_label = "CRITICAL"
 
@@ -236,6 +243,7 @@ elif menu == "Risk Calculator":
     # --- DEMOGRAPHIC & CORE INPUTS ---
     st.markdown("#### 👤 Patient Demographics & Core Factors")
     
+    # CORRECTED INPUT LAYOUT
     demo_col1, demo_col2, demo_col3 = st.columns(3)
     
     # Column 1: Core Identity
@@ -251,7 +259,6 @@ elif menu == "Risk Calculator":
     # Column 3: Baseline Risks (Creatinine)
     baseline_creat = demo_col3.number_input("Baseline Creatinine (mg/dL)", 0.5, 5.0, 0.9, format="%.1f") 
     
-    # ICD Input Field is REMOVED
     st.markdown("---")
     
     # --- ACUTE & CHRONIC INPUTS (CHECKBOXES MOVED HERE) ---
@@ -291,7 +298,7 @@ elif menu == "Risk Calculator":
 
 
     # --- CALCULATIONS ---
-    # Calculate all scores based on current inputs
+    # Passing new demographic factors to the calculation functions
     bleeding_risk = calculate_bleeding_risk(age_calc, inr_calc, on_anticoag, hist_gi_bleed, uncontrolled_bp, on_antiplatelet, gender_calc, weight_calc, smoking_calc, alcohol_use, antibiotic_order, dietary_change, liver_disease, prior_stroke)
     hypoglycemic_risk = calculate_hypoglycemic_risk(on_insulin, impaired_renal, high_hba1c, neuropathy_history, gender_calc, weight_calc, recent_dka)
     aki_risk = calculate_aki_risk(age_calc, on_diuretic, on_acei_arb, uncontrolled_bp, active_chemo, gender_calc, weight_calc, race_calc, baseline_creat, contrast_exposure)
@@ -329,14 +336,15 @@ elif menu == "Risk Calculator":
         elif aki_risk == max_risk:
             risk_type = "AKI"
         else:
-            risk_type = "General" 
-            
+            risk_type = "General" # Fallback for equality cases or if logic missed a path
+
         alert_message = generate_detailed_alert(risk_type, inputs)
 
         st.error(alert_message)
         
-        # --- NEW STEP: LOAD PATIENT DATA TO SESSION STATE ---
+        # --- THE LOAD BUTTON LOGIC ---
         if st.button("Load Patient to Dashboard"):
+            # Save the calculated scores and core demographics
             st.session_state['patient_loaded'] = True
             st.session_state['bleeding_risk'] = bleeding_risk
             st.session_state['hypoglycemic_risk'] = hypoglycemic_risk
@@ -346,54 +354,3 @@ elif menu == "Risk Calculator":
             st.toast("Patient data loaded! Switch to Live Dashboard.")
     else:
         st.success("Patient risk is manageable. Monitoring is sufficient.")
-
-
-# ---------------------------------------------------
-# PAGE 2 – CSV Upload (Bulk Analysis)
-# ---------------------------------------------------
-elif menu == "CSV Upload":
-    st.subheader("Bulk Patient Risk Analysis")
-
-    st.markdown("Upload a CSV file with columns for all relevant factors.")
-    st.info("NOTE: CSV must include all factor flags (e.g., `age`, `inr`, `gender`, `weight`, `on_antiplatelet`, `high_hba1c`, `active_chemo`, etc. as 1=Yes, 0=No).")
-    
-    uploaded = st.file_uploader("Upload CSV File", type="csv")
-
-    # [Code for Bulk Analysis goes here, using the updated logic from previous steps]
-    
-    st.warning("Bulk analysis is highly complex due to many required columns.")
-    st.dataframe(pd.DataFrame({'Sample Patient Age': [70, 65], 'Risk Status': ['High', 'Low']})) # Placeholder display
-    
-    
-# ---------------------------------------------------
-# PAGE 3 – Medication Checker
-# ---------------------------------------------------
-elif menu == "Medication Checker":
-    st.subheader("Drug-Drug Interaction Checker")
-    st.caption("Demo: Tests interactions against a small, hard-coded database.")
-    
-    d1 = st.text_input("Drug 1 (e.g., Warfarin)")
-    d2 = st.text_input("Drug 2 (e.g., Amiodarone)")
-    
-    if d1 and d2:
-        interaction = check_interaction(d1, d2)
-        if "Major" in interaction:
-            st.error(f"Interaction Result: {interaction}")
-        elif "Moderate" in interaction:
-            st.warning(f"Interaction Result: {interaction}")
-        else:
-            st.success(f"Interaction Result: {interaction}")
-
-
-# ---------------------------------------------------
-# PAGE 4 – Chatbot
-# ---------------------------------------------------
-elif menu == "Chatbot":
-    st.subheader("Clinical Information Chatbot")
-    st.caption("Ask quick questions about the data and model logic (e.g., 'What about bleeding risk?').")
-    
-    user_input = st.text_input("Ask a question:")
-    
-    if user_input:
-        response = chatbot_response(user_input)
-        st.info(response)
