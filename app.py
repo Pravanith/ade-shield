@@ -144,17 +144,35 @@ def chatbot_response(text):
     
     return "I need more specific clinical context. Please refine your query using drug classifications, risk factors, or one of the major ADE categories (Bleeding, Hypoglycemia, AKI)."
 
+# --- DRUG INTERACTION DATABASE (EXPANDED) ---
 interaction_db = {
+    # --- 1. Bleeding/Clotting Risks ---
     ("warfarin", "amiodarone"): "Major: Amiodaride increases INR, high bleeding risk.",
     ("warfarin", "ibuprofen"): "Major: NSAIDs increase bleeding risk with Warfarin.",
     ("apixaban", "ibuprofen"): "Moderate: NSAIDs increase bleeding risk with Apixaban.",
     ("clopidogrel", "aspirin"): "Moderate: Dual antiplatelet therapy, increases bleed risk.",
     ("rivaroxaban", "fluconazole"): "Major: Fluconazole increases Rivaroxaban levels (CYP3A4 inhibitor); high bleeding risk.",
+    ("warfarin", "paracetamol"): "Major: Paracetamol increases Warfarin's effect; high bleeding risk.",
+    ("sertraline", "warfarin"): "Moderate: SSRI (Sertraline) combined with Warfarin increases baseline bleeding risk.",
+
+    # --- 2. AKI/Renal/Electrolyte Risks ---
     ("lisinopril", "spironolactone"): "Major: Risk of severe hyperkalemia (high potassium).",
     ("ibuprofen", "lisinopril"): "Major: Severe AKI risk (Triple Whammy component).",
     ("furosemide", "lisinopril"): "Major: Diuretic + ACEi causes severe hypotension and AKI risk.",
+    ("prednisone", "furosemide"): "Major: Steroid + Diuretic increases risk of severe hypokalemia (low potassium).", # NEW
+    ("lithium", "hydrochlorothiazide"): "Major: Diuretic (HCTZ) increases Lithium toxicity risk by slowing excretion.", # NEW
+    ("allopurinol", "azathioprine"): "Major: Allopurinol dramatically increases Azathioprine toxicity and risk of severe bone marrow suppression.", # NEW
+    
+    # --- 3. Hypoglycemia/Diabetes Risks ---
     ("glipizide", "alcohol"): "Major: Increased risk of severe hypoglycemia.",
+    ("metformin", "cimetidine"): "Moderate: Cimetidine increases Metformin levels, raising hypoglycemia risk.",
     ("trimethoprim/sulfamethoxazole", "metformin"): "Major: TMP/SMX increases Metformin levels, high hypoglycemia risk.",
+    ("metoprolol", "insulin"): "Moderate: Beta-blocker (Metoprolol) can mask the warning signs of hypoglycemia.", # NEW
+
+    # --- 4. Cardiotoxicity/Serotonin Risks ---
+    ("sertraline", "sumatriptan"): "Major: Both increase serotonin levels; high risk of Serotonin Syndrome.", # NEW
+    ("azithromycin", "amiodarone"): "Major: Both prolong QT interval; high risk of fatal arrhythmia.", # NEW
+    ("metoprolol", "diltiazem"): "Major: Both slow heart rate; high risk of severe bradycardia and hypotension.", # NEW
 }
 
 def check_interaction(drug1, drug2):
@@ -165,8 +183,6 @@ def check_interaction(drug1, drug2):
     if (d2, d1) in interaction_db:
         return interaction_db[(d2, d1)]
     return "No major interaction found."
-
-
 # -----------------------------
 # Page Setup & Navigation
 # -----------------------------
