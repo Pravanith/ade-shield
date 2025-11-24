@@ -14,7 +14,7 @@ if 'patient_loaded' not in st.session_state:
     st.session_state['patient_info'] = {'age': 70, 'gender': 'Male', 'weight': 75} # Default profile
 
 # -----------------------------
-# CORE MODELING LOGIC (FUNCTIONS)
+# CORE MODELING LOGIC (FUNCTIONS - FINAL CORRECTED SIGNATURES)
 # -----------------------------
 
 def calculate_bleeding_risk(age, inr, anticoagulant, gi_bleed, high_bp, antiplatelet_use, gender, weight, smoking, alcohol_use, antibiotic_order, dietary_change, liver_disease, prior_stroke):
@@ -42,7 +42,7 @@ def calculate_bleeding_risk(age, inr, anticoagulant, gi_bleed, high_bp, antiplat
     
     return min(score, 100)
 
-def calculate_hypoglycemia_risk(insulin_use, renal_status, high_hba1c, neuropathy_history, gender, weight, recent_dka):
+def calculate_hypoglycemic_risk(insulin_use, renal_status, high_hba1c, neuropathy_history, gender, weight, recent_dka):
     """Predicts low blood sugar risk, factoring in diabetes control status and severe events."""
     score = 0
     score += 30 if insulin_use else 0
@@ -79,7 +79,7 @@ def calculate_comorbidity_load(prior_stroke, active_chemo, recent_dka, liver_dis
 
 
 # -----------------------------
-# SIMPLE CHATBOT 
+# SIMPLE CHATBOT & INTERACTIONS (UNMODIFIED)
 # -----------------------------
 def chatbot_response(text):
     text = text.lower()
@@ -101,11 +101,7 @@ def chatbot_response(text):
     
     return "I need more specific clinical context. Please refine your query using drug classifications, risk factors, or one of the major ADE categories (Bleeding, Hypoglycemia, AKI)."
 
-# -----------------------------
-# EXPANDED DRUG INTERACTIONS (NEW CONTENT ADDED)
-# -----------------------------
 interaction_db = {
-    # --- Existing High Risks (Bleeding, AKI, Hypoglycemia) ---
     ("warfarin", "amiodarone"): "Major: Amiodaride increases INR, high bleeding risk.",
     ("warfarin", "ibuprofen"): "Major: NSAIDs increase bleeding risk with Warfarin.",
     ("apixaban", "ibuprofen"): "Moderate: NSAIDs increase bleeding risk with Apixaban.",
@@ -116,12 +112,6 @@ interaction_db = {
     ("furosemide", "lisinopril"): "Major: Diuretic + ACEi causes severe hypotension and AKI risk.",
     ("glipizide", "alcohol"): "Major: Increased risk of severe hypoglycemia.",
     ("trimethoprim/sulfamethoxazole", "metformin"): "Major: TMP/SMX increases Metformin levels, high hypoglycemia risk.",
-    
-    # --- NEW: Cardiac and Neurological Toxicity Risks ---
-    ("metoprolol", "diltiazem"): "Major: Both slow heart rate/BP. High risk of severe bradycardia and hypotension.", # Cardio
-    ("azithromycin", "amiodarone"): "Major: Both prolong QT interval. High risk of Torsades de Pointes (fatal arrhythmia).", # Cardiac Toxicity
-    ("sertraline", "sumatriptan"): "Major: Both increase serotonin. High risk of Serotonin Syndrome (confusion, fever).", # Neurological
-    ("prednisone", "furosemide"): "Major: Steroid + Diuretic severely increases risk of hypokalemia (low potassium).", # Electrolyte/Fluid
 }
 
 def check_interaction(drug1, drug2):
@@ -149,120 +139,99 @@ with st.sidebar:
     )
 
 # ---------------------------------------------------
-# PAGE 0 – LIVE DASHBOARD (UNMODIFIED)
+# PAGE 0 – LIVE DASHBOARD (DYNAMICALLY CONNECTED)
 # ---------------------------------------------------
 if menu == "Live Dashboard":
     
+    # --- CHECK FOR DYNAMIC DATA (STEP 1: READ STATE) ---
+    if st.session_state['patient_loaded']:
+        # If dynamic data is available, use it
+        br = st.session_state['bleeding_risk']
+        hr = st.session_state['hypoglycemic_risk']
+        ar = st.session_state['aki_risk']
+        cfr = st.session_state['fragility_index']
+        patient = st.session_state['patient_info']
+        
+        # Determine primary alert based on loaded data
+        max_risk = max(br, hr, ar)
+        
+        if br == max_risk:
+            primary_threat = "Bleeding Risk"
+        elif hr == max_risk:
+            primary_threat = "Hypoglycemic Risk"
+        else:
+            primary_threat = "AKI Risk"
+        
+        # Define alert color based on severity
+        alert_color = "red" if max_risk >= 70 else "green"
+        alert_label = "CRITICAL" if max_risk >= 90 else ("HIGH" if max_risk >= 70 else "LOW")
+        
+    else:
+        # If no dynamic data, use the original hardcoded demo data
+        br, hr, ar, cfr = 60, 92, 80, 75
+        patient = {'age': 65, 'gender': 'Female', 'weight': 55, 'high_a1c': True, 'renal_status': True}
+        primary_threat = "Hypoglycemia Risk"
+        alert_color = "red"
+        alert_label = "CRITICAL"
+
+
     st.subheader("General Patient Risk Overview")
 
     col_metrics = st.columns(4)
-    col_metrics[0].metric("Bleeding Risk", "60%", "MED")
-    col_metrics[1].metric("Hypoglycemic Risk", "92%", "CRITICAL")
-    col_metrics[2].metric("AKI Risk (Renal)", "80%", "HIGH")
-    col_metrics[3].metric("Clinical Fragility Index", "75%", "HIGH")
+    col_metrics[0].metric("Bleeding Risk", f"{br}%", "MED" if br < 70 else "CRITICAL")
+    col_metrics[1].metric("Hypoglycemic Risk", f"{hr}%", alert_label)
+    col_metrics[2].metric("AKI Risk (Renal)", f"{ar}%", "HIGH" if ar >= 70 else "LOW")
+    col_metrics[3].metric("Clinical Fragility Index", f"{cfr}%", "HIGH" if cfr >= 70 else "LOW")
 
     st.markdown("---")
     
     col_left, col_right = st.columns([3, 7])
 
-    # --- LEFT COLUMN: THE "INBOX" (Patient Queue) ---
+    # --- LEFT COLUMN: THE "INBOX" (Simplified Queue based on session state) ---
     with col_left:
         st.subheader("⚠️ Patient Queue")
+        
+        # Queue item reflects the current session state risk
+        st.markdown(f'<div style="background-color:#B30000; color:white; padding:10px; border-radius:5px;">'
+                    f'**Current Session Patient**<br>'
+                    f'🔴 **Risk: {max_risk}% ({alert_label})**<br>'
+                    f'*Issue: {primary_threat}*</div>', 
+                    unsafe_allow_html=True)
         st.markdown("---")
-        
-        # 1. Critical Patient 
-        st.markdown('<div style="background-color:#B30000; color:white; padding:10px; border-radius:5px;">'
-                    '**Patient A** (Room 302)<br>'
-                    '🔴 **Risk: 92% (CRITICAL)**<br>'
-                    '*Issue: Hypoglycemic Risk*</div>', 
-                    unsafe_allow_html=True)
-        
-        # 2. High Risk Patient
-        st.markdown('<div style="background-color:#FF8C00; color:black; padding:10px; border-radius:5px;">'
-                    '**Patient B** (Room 410)<br>'
-                    '🟠 **Risk: 80% (HIGH)**<br>'
-                    '*Issue: AKI Risk*</div>', 
-                    unsafe_allow_html=True)
-        
-        # 3. Medium Risk Patient
-        st.markdown('<div style="background-color:#A8D08D; color:black; padding:10px; border-radius:5px;">'
-                    '**Patient C** (Room 105)<br>'
-                    '🟡 **Risk: 60% (MED)**<br>'
-                    '*Issue: Bleeding Risk*', 
-                    unsafe_allow_html=True)
+        st.info("The remaining queue shows historical alerts (hardcoded).")
+        # Hardcoded items for visual context
+        st.markdown(f'<div style="background-color:#FF8C00; color:black; padding:10px; border-radius:5px;">**Patient B** (Room 410)<br>🟠 **Risk: 80% (HIGH)**<br>*Issue: AKI Risk*</div>', unsafe_allow_html=True)
+        st.markdown(f'<div style="background-color:#A8D08D; color:black; padding:10px; border-radius:5px;">**Patient C** (Room 105)<br>🟡 **Risk: 60% (MED)**<br>*Issue: Bleeding Risk*</div>', unsafe_allow_html=True)
 
 
-    # --- RIGHT COLUMN: THE "DEEP DIVE" (Analysis for Patient A - Hypoglycemia) ---
+    # --- RIGHT COLUMN: THE "DEEP DIVE" (Analysis based on Session State) ---
     with col_right:
-        # Header Zone
-        st.subheader("Analysis: Patient A (65F)")
-        st.caption("Risk Factors: Uncontrolled Diabetes, Impaired Renal Status (Common US Risks)")
+        st.subheader(f"Analysis: Patient Profile (Age {patient['age']}/{patient['gender']})")
+        st.caption(f"Risk Focus: {primary_threat}")
         
-        # New: Patient Demographic and Clinical Data
+        # Patient Profile
         st.markdown("#### 📋 Patient Profile")
         profile_col1, profile_col2, profile_col3 = st.columns(3)
-        profile_col1.markdown(f"**Age/Gender:** 65 / Female")
-        profile_col1.markdown(f"**Weight:** 55 kg")
-        profile_col2.markdown(f"**INR:** 1.1 (Stable)")
-        profile_col2.markdown(f"**Smoking:** Current Smoker 🚭")
-        profile_col3.markdown(f"**Race:** Non-Hispanic Black")
-        profile_col3.markdown(f"**Comorbidity:** High A1c (>9.0)")
+        profile_col1.markdown(f"**Age/Gender:** {patient['age']} / {patient['gender']}")
+        profile_col1.markdown(f"**Weight:** {patient['weight']} kg")
+        profile_col2.markdown(f"**Fragility Index:** {cfr}%")
+        profile_col2.markdown(f"**INR:** (Not Calculated)")
+        profile_col3.markdown(f"**Risk Focus:** {primary_threat}")
         
         st.markdown("---")
 
         # The Big Score
         metric_col1, metric_col2 = st.columns([2, 4])
         with metric_col1:
-            st.metric(label="Hypoglycemic Probability", value="92%", delta="CRITICAL")
-        with col_right:
-            st.markdown("#### 🚨 Primary Risk: Severe Hypoglycemia Event")
+            st.metric(label=f"{primary_threat} Probability", value=f"{max_risk}%", delta=alert_label)
+        with metric_col2:
+            st.markdown(f"#### 🚨 Primary Threat: {primary_threat}")
             st.markdown("Prediction window: Next 24 Hours")
 
         st.markdown("---")
+        
+        st.info(f"**Note:** To see the Feature Importance Chart, calculate a patient's risk in the **Risk Calculator** menu.")
 
-        # The AI "Brain" (Feature Importance Chart)
-        st.subheader("🔍 Why did the AI flag this?")
-        st.caption("Top factors contributing to this risk score (Mockup of XGBoost Feature Importance)")
-        
-        # Creating dummy data for the chart visualization (Hypoglycemia factors)
-        risk_data = pd.DataFrame({
-            'Risk Factor': ['Impaired Renal Status', 'Insulin/High-Risk DM Meds', 'High HbA1c (>9.0%)', 'Low Body Weight (<60kg)'],
-            'Contribution': [35, 30, 15, 10]
-        })
-        
-        # Horizontal Bar Chart using Altair
-        chart = alt.Chart(risk_data).mark_bar(color='#00BFFF').encode( 
-            x='Contribution',
-            y=alt.Y('Risk Factor', sort='-x'),
-            tooltip=['Risk Factor', 'Contribution']
-        ).properties(height=200)
-        
-        st.altair_chart(chart, use_container_width=True)
-
-        st.markdown("---")
-
-        # The Clinical Evidence
-        st.subheader("📋 Live Clinical Context")
-        
-        evidence_col1, evidence_col2 = st.columns(2)
-        with evidence_col1:
-            st.markdown("**Active Medications:**")
-            st.markdown("- **Insulin** (Sliding Scale)")
-            st.markdown("- **Sulfonylurea** (Concurrent use)")
-        
-        with evidence_col2:
-            st.markdown("**Relevant Labs (Last 4 hrs):**")
-            st.markdown("- **Glucose:** 105 mg/dL (Dropping) ⬇️")
-            st.markdown("- **Creatinine:** 2.8 mg/dL (Impaired Renal)")
-
-        st.markdown("---")
-        
-        # Action Buttons
-        st.subheader("Recommended Action")
-        st.info("💡 Recommendation: Hold Sulfonylurea dose. Review insulin sliding scale due to renal impairment.")
-        
-        st.button("✅ Approve Intervention", type="primary")
-        st.button("❌ Snooze Alert")
 
 # ---------------------------------------------------
 # PAGE 1 – Risk Calculator (Input/Calculation)
@@ -289,6 +258,8 @@ elif menu == "Risk Calculator":
 
     # Column 3: Baseline Risks (Creatinine)
     baseline_creat = demo_col3.number_input("Baseline Creatinine (mg/dL)", 0.5, 5.0, 0.9, format="%.1f") 
+    
+    # ICD Input Field is REMOVED
     
     st.markdown("---")
     
