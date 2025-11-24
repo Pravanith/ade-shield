@@ -379,4 +379,21 @@ elif menu == "Medication Checker":
         interaction = check_interaction(d1, d2)
         if "Major" in interaction:
             st.error(f"Interaction Result: {interaction}")
-        elif "Moderate" in
+        elif "Moderate" in interaction:
+            st.warning(f"Interaction Result: {interaction}")
+        else:
+            st.success(f"Interaction Result: {interaction}")
+
+
+# ---------------------------------------------------
+# PAGE 4 – Chatbot
+# ---------------------------------------------------
+elif menu == "Chatbot":
+    st.subheader("Clinical Information Chatbot")
+    st.caption("Ask quick questions about the data and model logic (e.g., 'What about bleeding risk?').")
+    
+    user_input = st.text_input("Ask a question:")
+    
+    if user_input:
+        response = chatbot_response(user_input)
+        st.info(response)
