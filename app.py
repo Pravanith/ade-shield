@@ -5,7 +5,6 @@ import altair as alt
 # -----------------------------
 # SESSION STATE INITIALIZATION
 # -----------------------------
-# This creates the temporary memory to hold the patient data between pages
 if 'patient_loaded' not in st.session_state:
     st.session_state['patient_loaded'] = False
     st.session_state['bleeding_risk'] = 0
@@ -15,7 +14,7 @@ if 'patient_loaded' not in st.session_state:
     st.session_state['patient_info'] = {'age': 70, 'gender': 'Male', 'weight': 75} # Default profile
 
 # -----------------------------
-# CORE MODELING LOGIC (FUNCTIONS)
+# CORE MODELING LOGIC (FUNCTIONS - FINAL CORRECTED SIGNATURES)
 # -----------------------------
 
 def calculate_bleeding_risk(age, inr, anticoagulant, gi_bleed, high_bp, antiplatelet_use, gender, weight, smoking, alcohol_use, antibiotic_order, dietary_change, liver_disease, prior_stroke):
@@ -77,6 +76,7 @@ def calculate_comorbidity_load(prior_stroke, active_chemo, recent_dka, liver_dis
     load += 10 if smoking else 0
     load += 10 if high_bp else 0
     return min(load, 100)
+
 
 # -----------------------------
 # SIMPLE CHATBOT & INTERACTIONS (UNMODIFIED)
