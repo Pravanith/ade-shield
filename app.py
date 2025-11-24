@@ -77,6 +77,49 @@ def calculate_comorbidity_load(prior_stroke, active_chemo, recent_dka, liver_dis
     load += 10 if high_bp else 0
     return min(load, 100)
 
+# ---------------------------------------------------
+# NEW FUNCTION: GENERATE SPECIFIC ALERT TEXT (UNMODIFIED)
+# ---------------------------------------------------
+
+def generate_detailed_alert(risk_type, inputs):
+    """Generates a detailed, action-oriented alert based on the highest risk type and active inputs."""
+    
+    # 1. Determine the highest scoring threat
+    if risk_type == "Bleeding":
+        base_message = "🔴 CRITICAL ALERT: Highest threat is **Bleeding Risk**. Primary factors:"
+        factors = []
+        if inputs['inr'] > 3.5: factors.append(f"High INR ({inputs['inr']})")
+        if inputs['antibiotic_order']: factors.append("New Antibiotic Order (Metabolic Interference)")
+        if inputs['on_antiplatelet']: factors.append("Dual Antiplatelet/Anticoagulant Therapy")
+        if inputs['alcohol_use']: factors.append("Heavy Alcohol Use")
+        if inputs['hist_gi_bleed']: factors.append("History of GI Bleed")
+        if inputs['prior_stroke']: factors.append("History of Stroke/TIA (Complex Management)")
+        
+    elif risk_type == "Hypoglycemic":
+        base_message = "🔴 CRITICAL ALERT: Highest threat is **Hypoglycemic Risk**. Primary factors:"
+        factors = []
+        if inputs['impaired_renal']: factors.append("Impaired Renal Status (Reduced Drug Clearance)")
+        if inputs['high_hba1c']: factors.append("Poor DM Control (HbA1c > 9.0%)")
+        if inputs['recent_dka']: factors.append("Recent DKA/HHS Admission (Metabolic Volatility)")
+        if inputs['weight'] < 60: factors.append(f"Low Body Weight ({inputs['weight']} kg)")
+
+    elif risk_type == "AKI":
+        base_message = "🔴 CRITICAL ALERT: Highest threat is **AKI Risk (Renal)**. Primary factors:"
+        factors = []
+        if inputs['baseline_creat'] > 1.5: factors.append(f"Baseline CKD (Creatinine > 1.5)")
+        if inputs['active_chemo']: factors.append("Active Chemotherapy (Nephrotoxic Agent)")
+        if inputs['contrast_exposure']: factors.append("Recent Contrast Dye Exposure")
+        if inputs['on_acei_arb'] and inputs['on_diuretic']: factors.append("Combined ACEi/Diuretic Therapy")
+
+    else: # Should not happen if risk >= 70
+        return "HIGH RISK ALERT: Check specific patient risks."
+        
+    # Join factors or provide default if no specific factor is > 0
+    if factors:
+        return base_message + " " + ", ".join(factors) + "."
+    else:
+        return base_message + " High risk due to combination of demographic factors."
+
 
 # -----------------------------
 # SIMPLE CHATBOT & INTERACTIONS (UNMODIFIED)
@@ -224,7 +267,7 @@ if menu == "Live Dashboard":
         metric_col1, metric_col2 = st.columns([2, 4])
         with metric_col1:
             st.metric(label=f"{primary_threat} Probability", value=f"{max_risk}%", delta=alert_label)
-        with metric_col2:
+        with col_right:
             st.markdown(f"#### 🚨 Primary Threat: {primary_threat}")
             st.markdown("Prediction window: Next 24 Hours")
 
@@ -316,7 +359,7 @@ elif menu == "Risk Calculator":
 
 
     # 2. Determine and Display Specific Alert
-    max_risk = max(bleeding_risk, hypoglycemic_risk, aki_risk)
+    max_risk = max(bleeding_risk, hypoglycemia_risk, aki_risk)
     
     if max_risk >= 70:
         # Gather all inputs into a dictionary for easy passing to the alert function
@@ -331,7 +374,7 @@ elif menu == "Risk Calculator":
         # Determine the highest risk type for generating the detailed alert
         if bleeding_risk == max_risk:
             risk_type = "Bleeding"
-        elif hypoglycemic_risk == max_risk:
+        elif hypoglycemia_risk == max_risk:
             risk_type = "Hypoglycemic"
         elif aki_risk == max_risk:
             risk_type = "AKI"
@@ -347,7 +390,7 @@ elif menu == "Risk Calculator":
             # Save the calculated scores and core demographics
             st.session_state['patient_loaded'] = True
             st.session_state['bleeding_risk'] = bleeding_risk
-            st.session_state['hypoglycemic_risk'] = hypoglycemic_risk
+            st.session_state['hypoglycemic_risk'] = hypoglycemia_risk
             st.session_state['aki_risk'] = aki_risk
             st.session_state['fragility_index'] = comorbidity_load
             st.session_state['patient_info'] = {'age': age_calc, 'gender': gender_calc, 'weight': weight_calc}
