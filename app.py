@@ -303,7 +303,7 @@ elif menu == "Risk Calculator":
     # --- OUTPUTS ---
     output_col1, output_col2, output_col3, output_col4 = st.columns(4)
     output_col1.metric("Bleeding Risk", f"{bleeding_risk}%", "CRITICAL ALERT")
-    output_col2.metric("Hypoglycemic Risk", f"{hypoglycemic_risk}%", "CRITICAL ALERT")
+    output_col2.metric("Hypoglycemia Risk", f"{hypoglycemic_risk}%", "CRITICAL ALERT")
     output_col3.metric("AKI Risk (Renal)", f"{aki_risk}%", "HIGH ALERT")
     output_col4.metric("Clinical Fragility Index", f"{comorbidity_load}%", "CRITICAL ALERT")
 
@@ -312,7 +312,7 @@ elif menu == "Risk Calculator":
     max_risk = max(bleeding_risk, hypoglycemic_risk, aki_risk)
     
     if max_risk >= 70:
-        # Gather all inputs into a dictionary for easy passing to the alert function
+        # Gather all inputs into a dictionary for easy passing to the alert function (omitted for brevity)
         inputs = {
             'inr': inr_calc, 'antibiotic_order': antibiotic_order, 'on_antiplatelet': on_antiplatelet,
             'alcohol_use': alcohol_use, 'hist_gi_bleed': hist_gi_bleed, 'prior_stroke': prior_stroke,
@@ -335,8 +335,9 @@ elif menu == "Risk Calculator":
 
         st.error(alert_message)
         
-        # --- NEW STEP: LOAD PATIENT DATA TO SESSION STATE ---
+        # --- FIX: THE MISSING BUTTON LOGIC ---
         if st.button("Load Patient to Dashboard"):
+            # Save the calculated scores and core demographics
             st.session_state['patient_loaded'] = True
             st.session_state['bleeding_risk'] = bleeding_risk
             st.session_state['hypoglycemic_risk'] = hypoglycemic_risk
@@ -344,9 +345,9 @@ elif menu == "Risk Calculator":
             st.session_state['fragility_index'] = comorbidity_load
             st.session_state['patient_info'] = {'age': age_calc, 'gender': gender_calc, 'weight': weight_calc}
             st.toast("Patient data loaded! Switch to Live Dashboard.")
+
     else:
         st.success("Patient risk is manageable. Monitoring is sufficient.")
-
 
 # ---------------------------------------------------
 # PAGE 2 – CSV Upload (Bulk Analysis)
