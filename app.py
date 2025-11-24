@@ -31,7 +31,7 @@ def calculate_bleeding_risk(age, inr, anticoagulant, gi_bleed, high_bp, antiplat
     
     return min(score, 100)
 
-def calculate_hypoglycemia_risk(insulin_use, renal_status, high_hba1c, neuropathy_history, gender, weight, recent_dka):
+def calculate_hypoglycemic_risk(insulin_use, renal_status, high_hba1c, neuropathy_history, gender, weight, recent_dka):
     """Predicts low blood sugar risk, factoring in diabetes control status and severe events."""
     score = 0
     score += 30 if insulin_use else 0
