@@ -327,7 +327,8 @@ elif menu == "Risk Calculator":
         elif hypoglycemic_risk == max_risk:
             risk_type = "Hypoglycemic"
         elif aki_risk == max_risk:
-            risk_type = "AKI"
+            risk_type = "AKI" 
+            # helloworld
         else:
             risk_type = "General" 
             
